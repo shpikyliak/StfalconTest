@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Exception\ApiException;
 use App\Repository\CurrencyThresholdCheckRepository;
 use App\Service\Bank\Monobank;
 use App\Service\Bank\Privat;
@@ -62,8 +63,14 @@ class UpdateCurrencyRateCommand extends Command
         $currenciesToLook = $this->currencyThresholdCheckRepository->findUniqueCurrencies();
 
         foreach ($currenciesToLook as $currencyToLook) {
-            $monoRate = $this->monoService->getCurrencyData($currencyToLook['currency']);
-            $privatRate = $this->privatService->getCurrencyData($currencyToLook['currency']);
+            try {
+                $monoRate = $this->monoService->getCurrencyData($currencyToLook['currency']);
+                $privatRate = $this->privatService->getCurrencyData($currencyToLook['currency']);
+            }catch (ApiException $e)
+            {
+                $this->logger->error($e->getMessage());
+            }
+
             $toNotifyAboutChange = $this->currencyThresholdCheckRepository->findAllAboveThreshold($monoRate, $privatRate, $currencyToLook['currency']);
 
             foreach ($toNotifyAboutChange as $toNotify) {
