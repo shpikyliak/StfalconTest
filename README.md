@@ -1,51 +1,117 @@
-# Symfony Docker
 
-A [Docker](https://www.docker.com/)-based installer and runtime for the [Symfony](https://symfony.com) web framework,
-with [FrankenPHP](https://frankenphp.dev) and [Caddy](https://caddyserver.com/) inside!
+# Currency Rate Notifier
 
-![CI](https://github.com/dunglas/symfony-docker/workflows/CI/badge.svg)
+This application is a Symfony-based project designed to monitor currency exchange rates from MonoBank and PrivatBank APIs. It compares current rates with user-defined thresholds and sends email notifications if the changes exceed the specified threshold. The app utilizes a MySQL database and runs with Docker for streamlined setup and deployment.
 
-## Getting Started
+---
 
-1. If not already done, [install Docker Compose](https://docs.docker.com/compose/install/) (v2.10+)
-2. Run `docker compose build --no-cache` to build fresh images
-3. Run `docker compose up --pull always -d --wait` to set up and start a fresh Symfony project
-4. Open `https://localhost` in your favorite web browser and [accept the auto-generated TLS certificate](https://stackoverflow.com/a/15076602/1352334)
-5. Run `docker compose down --remove-orphans` to stop the Docker containers.
+## Quick Start: How to Run
 
-## Features
+### Prerequisites
+- PHP 8.2+
+- Composer
+- Docker and Docker Compose
+- Git
 
-* Production, development and CI ready
-* Just 1 service by default
-* Blazing-fast performance thanks to [the worker mode of FrankenPHP](https://github.com/dunglas/frankenphp/blob/main/docs/worker.md) (automatically enabled in prod mode)
-* [Installation of extra Docker Compose services](docs/extra-services.md) with Symfony Flex
-* Automatic HTTPS (in dev and prod)
-* HTTP/3 and [Early Hints](https://symfony.com/blog/new-in-symfony-6-3-early-hints) support
-* Real-time messaging thanks to a built-in [Mercure hub](https://symfony.com/doc/current/mercure.html)
-* [Vulcain](https://vulcain.rocks) support
-* Native [XDebug](docs/xdebug.md) integration
-* Super-readable configuration
+### Installation Steps
 
-**Enjoy!**
+1. **Clone the Repository**
+   ```bash
+   git clone <repository-url>
+   cd <repository-folder>
+   ```
 
-## Docs
+2. **Install PHP Dependencies**
+   ```bash
+   composer install
+   ```
 
-1. [Options available](docs/options.md)
-2. [Using Symfony Docker with an existing project](docs/existing-project.md)
-3. [Support for extra services](docs/extra-services.md)
-4. [Deploying in production](docs/production.md)
-5. [Debugging with Xdebug](docs/xdebug.md)
-6. [TLS Certificates](docs/tls.md)
-7. [Using MySQL instead of PostgreSQL](docs/mysql.md)
-8. [Using Alpine Linux instead of Debian](docs/alpine.md)
-9. [Using a Makefile](docs/makefile.md)
-10. [Updating the template](docs/updating.md)
-11. [Troubleshooting](docs/troubleshooting.md)
+3. **Set Up Environment Variables**
+    - Duplicate the `.env` file as `.env.local`:
+      ```bash
+      cp .env .env.local
+      ```
+    - Update the database credentials and other configuration as needed in `.env.local`.  
+      Example for Docker:
+      ```
+      DATABASE_URL=mysql://user:password@db:3306/database_name
+      ```
 
-## License
+4. **Build and Start Docker Containers**
+   ```bash
+   docker-compose build
+   docker-compose up -d
+   ```
 
-Symfony Docker is available under the MIT License.
+5. **Run Database Migrations**
+   ```bash
+   docker-compose exec php bin/console doctrine:migrations:migrate
+   ```
+---
 
-## Credits
+## Application Overview
 
-Created by [Kévin Dunglas](https://dunglas.dev), co-maintained by [Maxime Helias](https://twitter.com/maxhelias) and sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).
+This application provides two main functionalities, implemented as Symfony console commands:
+
+1. **Command to Set Up Thresholds**  
+   Users can specify a threshold for currency exchange rates along with their email address using a console command.
+    - **Command:**
+      ```bash
+      bin/console app:add-threshold <email> <currency> <threshold>
+      ```  
+        - `email`: The email address to send notifications to.
+        - `currency`: The currency code (e.g., `USD`, `EUR`).
+        - `threshold`: The rate change threshold to trigger notifications.
+
+2. **Cron Job for Rate Monitoring**  
+   Periodically checks if the exchange rates have changed beyond user-defined thresholds. Sends email notifications to users and removes the processed entries from the database.
+    - **Command:**
+      ```bash
+      bin/console app:check-currency-rates
+      ```
+
+---
+
+## How It Works
+
+1. **Add Thresholds:**
+    - A user specifies a currency, a threshold, and an email address.
+    - The application saves this data in the database for monitoring.
+
+2. **Monitor Currency Rates:**
+    - The cron job fetches the latest rates for all currencies with active thresholds.
+    - It compares the rates from MonoBank and PrivatBank APIs with the stored thresholds.
+    - If the threshold is exceeded, an email notification is sent to the user, and the record is removed from the database.
+
+---
+
+## Configuration Notes
+
+### Email Configuration
+Update the SMTP settings in `.env.local` to configure email notifications. Example:
+```dotenv
+MAILER_DSN=smtp://username:password@smtp.mailtrap.io:2525
+```
+
+### Docker Commands
+
+- **Stop containers:**
+  ```bash
+  docker-compose down
+  ```
+
+- **Restart containers:**
+  ```bash
+  docker-compose restart
+  ```
+
+- **Check logs:**
+  ```bash
+  docker-compose logs -f
+  ```
+
+---
+
+## Summary
+
+This application simplifies monitoring exchange rates by allowing users to set up automated notifications when significant changes occur. Using Symfony's console commands and a robust service-based architecture, it provides flexibility and reliability for managing currency rate thresholds and notifications.

@@ -1,6 +1,5 @@
 #syntax=docker/dockerfile:1
 
-# Versions
 FROM dunglas/frankenphp:1-php8.3 AS frankenphp_upstream
 
 # The different stages of this Dockerfile are meant to be built into separate images
@@ -39,11 +38,24 @@ ENV COMPOSER_ALLOW_SUPERUSER=1
 ENV PHP_INI_SCAN_DIR=":$PHP_INI_DIR/app.conf.d"
 
 ###> recipes ###
+###> doctrine/doctrine-bundle ###
+RUN install-php-extensions pdo_pgsql
+###< doctrine/doctrine-bundle ###
 ###< recipes ###
+
+#install cron
+RUN apt-get update && apt-get -y install cron
+
 
 COPY --link frankenphp/conf.d/10-app.ini $PHP_INI_DIR/app.conf.d/
 COPY --link --chmod=755 frankenphp/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 COPY --link frankenphp/Caddyfile /etc/caddy/Caddyfile
+
+COPY crontab /etc/cron.d/symfony-cron
+RUN chmod 0644 /etc/cron.d/symfony-cron && crontab /etc/cron.d/symfony-cron
+
+#create logfile for cron
+RUN mkdir -p /var/www/html/var/log && touch /var/www/html/var/log/cron.log
 
 ENTRYPOINT ["docker-entrypoint"]
 
@@ -65,6 +77,8 @@ RUN set -eux; \
 COPY --link frankenphp/conf.d/20-app.dev.ini $PHP_INI_DIR/app.conf.d/
 
 CMD [ "frankenphp", "run", "--config", "/etc/caddy/Caddyfile", "--watch" ]
+#run cron
+CMD cron && tail -f /var/www/html/var/log/cron.log
 
 # Prod FrankenPHP image
 FROM frankenphp_base AS frankenphp_prod
@@ -92,3 +106,5 @@ RUN set -eux; \
 	composer dump-env prod; \
 	composer run-script --no-dev post-install-cmd; \
 	chmod +x bin/console; sync;
+
+
